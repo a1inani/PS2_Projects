@@ -13,7 +13,7 @@ docker run -it -w /project -v PROJECTDIR:/project ps2dev/ps2dev sh
 To install GNU Make, run the following command:
 
 ```
-apk add make
+apk add make nano git mpc mpc1 mpfr4 gmp zip
 ```
 
 You can now use your usual development commands using the docker container.
