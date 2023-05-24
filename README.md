@@ -24,3 +24,9 @@ After you are finished with the docker container, in the terminal where you type
 ```
 exit
 ```
+
+To build an elf file, run the following in the project directory (within the docker container)
+
+```
+make
+```
