@@ -7,7 +7,7 @@ Open a new terminal.
 To open the docker container's shell while binding the current directory to "/project" inside the container and changing the container's current directory to "/project", run the following command:
 
 ```
-docker run -it -w /project -v PROJECTDIR:/project ps2dev/ps2dev sh
+docker run -it -w /project -v /Users/alinani/Desktop/PS2_Projects:/project ps2dev/ps2dev sh
 ```
 
 To install GNU Make, run the following command:
