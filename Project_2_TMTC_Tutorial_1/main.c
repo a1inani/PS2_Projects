@@ -20,7 +20,7 @@ int gs_init(int width, int height, int psm, int psmz, int vmode, int gmode)
     graph_set_framebuffer_filtered(fb_address, width, psm, 0, 0);
     graph_enable_output();
 
-    qword_t buf[20];
+    qword_t buf[50];
     qword_t *q = buf;
     q = draw_primitive_xyoffset(q, 0, 0, 0);
     q = draw_finish(q);
@@ -28,6 +28,13 @@ int gs_init(int width, int height, int psm, int psmz, int vmode, int gmode)
     dma_wait_fast();
 
     return 0;
+}
+
+int draw() 
+{
+    qword_t buf[50];
+    qword_t *q = buf;
+    
 }
 
 int main()
@@ -42,4 +49,6 @@ int main()
 
     // build buffer with triangle data
 
+    while(1)
+        continue; 
 }
