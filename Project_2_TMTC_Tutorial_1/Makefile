@@ -38,7 +38,7 @@ else
 endif
 
 $(ISO_TGT): $(EE_BIN)
-	genisoimage -o $(ISO_TGT) $(EE_BIN) SYSTEM.CNF
+	genisoimage -l -o $(ISO_TGT) $(EE_BIN) SYSTEM.CNF
 
 all: $(EE_BIN)
 
