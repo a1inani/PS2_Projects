@@ -16,6 +16,8 @@ EE_OBJS = main.o
 EE_CFLAGS += -fdata-sections -ffunction-sections
 EE_LDFLAGS += -Wl,--gc-sections
 
+ISO_TGT = tmtc1.iso
+
 ifeq ($(DUMMY_TIMEZONE), 1)
    EE_CFLAGS += -DDUMMY_TIMEZONE
 endif
@@ -34,6 +36,9 @@ else
   EE_CFLAGS += -Os
   EE_LDFLAGS += -s
 endif
+
+$(ISO_TGT): $(EE_BIN)
+	genisoimage -o $(ISO_TGT) $(EE_BIN) SYSTEM.CNF
 
 all: $(EE_BIN)
 
