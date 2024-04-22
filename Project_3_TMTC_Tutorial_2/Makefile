@@ -43,7 +43,7 @@ $(ISO_TGT): $(EE_BIN)
 all: $(EE_BIN)
 
 clean:
-	rm -rf $(EE_OBJS) $(EE_BIN) $(ISO_TGT)
+	rm -rf *.o $(EE_OBJS) $(EE_BIN) $(ISO_TGT)
 
 # Include makefiles
 include $(PS2SDK)/samples/Makefile.pref
