@@ -29,3 +29,10 @@ To build an elf file, run the following in the project directory (within the doc
 ```
 make
 ```
+
+To generate ISOs, ensure that genisoimage has been installed in the container. Then include the command in your Makefile.
+
+```
+$(ISO_TGT): $(EE_BIN)
+	genisoimage -l -o $(ISO_TGT) $(EE_BIN) SYSTEM.CNF
+```
