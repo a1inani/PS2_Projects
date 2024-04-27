@@ -71,9 +71,9 @@ int gs_init(int width, int height, int psm, int psmz, int vmode, int gmode)
 }
 
 static int tri[] = {
-    10, 60 , 0,
+    10, 0, 0,
     600, 200, 1,
-    20, 400, 10
+    20, 400, 0,
 };
 
 #define SHIFT_AS_I64(x, b) (((int64_t)x)<<b)
