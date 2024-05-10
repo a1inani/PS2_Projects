@@ -1,19 +1,23 @@
-#include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
-#include <kernel.h>
+#include <string.h>
+#include <unistd.h>
+
 #include <draw.h>
+#include <graph.h>
 #include <gs_psm.h>
 #include <gs_gp.h>
 #include <dma.h>
 #include <dma_tags.h>
-#include <graph.h>
+
 #include <inttypes.h>
-#include <unistd.h>
 
 int printf(const char *format, ...);
 
-#define OFFSET_X 0
-#define OFFSET_Y 0
+#define OFFSET_X 2048
+#define OFFSET_Y 2048
+
+#define myftoi4(x) ((x) << 4)
 
 #define VID_W 640
 #define VID_H 448
@@ -112,9 +116,12 @@ qword_t *draw(qword_t *q)
         // 0xa -> 0xa0
         // fixed point format xxxx xxxx xxxx.yyyy
         int base = i*3;
-        q->dw[0] = (tri[base+0]<<4) | SHIFT_AS_I64(tri[base+1]<<4, 32);
-        q->dw[0] = (tri[base+2]<<4);
-        printf("drawing vertex %x %x %x\n", tri[base+0], tri[base+1], tri[base+2]);
+        int x = myftoi4(tri[base+0]+OFFSET_X);
+        int y = myftoi4(tri[base+1]+OFFSET_Y);
+        int z = 0;
+        q->dw[0] = x | SHIFT_AS_I64(y, 32);
+        q->dw[0] = z;
+        //printf("drawing vertex %x %x %x\n", x, y, z);
         q++;
     }
     
@@ -143,6 +150,7 @@ int main()
         q = draw(q);
         q = draw_finish(q);
         dma_channel_send_normal(DMA_CHANNEL_GIF, buf, q-buf, 0, 0);
+        print_buffer(buf, q-buf);
         
         // wait for vsync
         draw_wait_finish();
