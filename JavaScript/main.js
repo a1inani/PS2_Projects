@@ -12,8 +12,7 @@ const state = {
     scrollOffset: 0,
     maxVisible: 15,
     isLoading: true,
-    errorMessage: null,
-    statusMessage: null
+    errorMessage: null
 };
 
 // Colors
@@ -24,50 +23,44 @@ const TEXT_COLOR = Color.new(255, 255, 255, 128);
 const FOLDER_COLOR = Color.new(100, 200, 255, 128);
 const FILE_COLOR = Color.new(200, 200, 200, 128);
 const JS_COLOR = Color.new(255, 220, 100, 128);
-const SUCCESS_COLOR = Color.new(100, 255, 100, 128);
-const ERROR_COLOR = Color.new(255, 100, 100, 128);
 
 // Load files from current directory
 function loadDirectory(path) {
     state.isLoading = true;
     state.errorMessage = null;
-    state.statusMessage = null;
     
     try {
-        // Normalize path
-        if (!path.endsWith('/')) {
-            path = path + '/';
-        }
-        
         const dirList = System.listDir(path);
         
         if (!dirList || dirList.length === 0) {
             state.files = [];
-            state.statusMessage = "Empty directory";
-            state.isLoading = false;
+            state.errorMessage = "Empty directory";
             return;
         }
         
+        // Filter: only directories and .js files
+        const filtered = dirList.filter(item => {
+            return item.directory || item.name.endsWith('.js');
+        });
+        
         // Sort: directories first, then files
-        state.files = dirList.sort((a, b) => {
+        state.files = filtered.sort((a, b) => {
             if (a.directory && !b.directory) return -1;
             if (!a.directory && b.directory) return 1;
             return a.name.localeCompare(b.name);
         });
         
         // Add parent directory option if not at root
-        if (path !== "mass:/" && path !== "cdfs:/" && path !== "mc0:/" && path !== "mc1:/") {
+        if (path !== "mass:/" && path !== "cdfs:/") {
             state.files.unshift({ name: "..", directory: true, size: 0 });
         }
         
-        state.currentPath = path;
         state.selectedIndex = 0;
         state.scrollOffset = 0;
         
     } catch (e) {
-        state.errorMessage = `Error: ${e.toString()}`;
+        state.errorMessage = `Error loading directory: ${e}`;
         state.files = [];
-        std.printf("Directory load error: %s\n", e.toString());
     } finally {
         state.isLoading = false;
     }
@@ -75,94 +68,35 @@ function loadDirectory(path) {
 
 // Get parent directory
 function getParentPath(path) {
-    // Remove trailing slash
-    if (path.endsWith('/')) {
-        path = path.slice(0, -1);
-    }
-    
     const parts = path.split('/').filter(p => p.length > 0);
-    
-    // If at device root
     if (parts.length <= 1) {
-        return parts[0] + ':/';
+        return path.includes("mass:") ? "mass:/" : "cdfs:/";
     }
-    
     parts.pop();
     return parts.join('/') + '/';
 }
 
-// Build full file path
-function getFullPath(file) {
-    let path = state.currentPath;
-    
-    // Ensure path ends with /
-    if (!path.endsWith('/')) {
-        path = path + '/';
-    }
-    
-    return path + file.name;
-}
-
 // Execute/open selected file
 function openFile(file) {
+    const fullPath = state.currentPath + file.name;
+    
     if (file.directory) {
         if (file.name === "..") {
             state.currentPath = getParentPath(state.currentPath);
         } else {
-            const fullPath = getFullPath(file);
-            state.currentPath = fullPath;
-            if (!state.currentPath.endsWith('/')) {
-                state.currentPath += '/';
-            }
+            state.currentPath = fullPath + '/';
         }
         loadDirectory(state.currentPath);
-        return;
-    }
-    
-    // Handle file execution
-    if (!file.name.endsWith('.js')) {
-        state.errorMessage = "Can only run .js files";
-        return;
-    }
-    
-    const fullPath = getFullPath(file);
-    
-    std.printf("Attempting to load: %s\n", fullPath);
-    
-    try {
-        // Method 1: Check if file exists first
-        if (!std.exists(fullPath)) {
-            state.errorMessage = `File not found: ${fullPath}`;
-            std.printf("File does not exist: %s\n", fullPath);
-            return;
+    } else {
+        // Only JavaScript files are shown, so this should always work
+        if (file.name.endsWith('.js')) {
+            try {
+                // Use std.reload to run the script
+                std.reload(fullPath);
+            } catch (e) {
+                state.errorMessage = `Error loading ${file.name}: ${e}`;
+            }
         }
-        
-        std.printf("File exists, attempting to load...\n");
-        
-        // Method 2: Load and execute with std.loadScript
-        try {
-            std.loadScript(fullPath);
-            // If we get here, script loaded successfully
-            std.printf("Script loaded successfully!\n");
-        } catch (loadError) {
-            // Try alternative method with std.reload
-            std.printf("loadScript failed, trying reload: %s\n", loadError.toString());
-            state.errorMessage = `Loading ${file.name}...`;
-            
-            // Small delay to show message
-            os.setTimeout(() => {
-                try {
-                    std.reload(fullPath);
-                } catch (reloadError) {
-                    state.errorMessage = `Failed to load: ${reloadError.toString()}`;
-                    std.printf("Reload error: %s\n", reloadError.toString());
-                }
-            }, 100);
-        }
-        
-    } catch (e) {
-        state.errorMessage = `Error: ${e.toString()}`;
-        std.printf("Load error: %s\n", e.toString());
     }
 }
 
@@ -181,25 +115,18 @@ function draw() {
     Draw.rect(0, 0, 640, 40, HEADER_COLOR);
     font.color = TEXT_COLOR;
     font.scale = 1.0;
-    font.print(10, 10, "Dashboard");
+    font.print(10, 10, "AthenaEnv File Manager - JavaScript Files Only");
     
     // Current path
     font.scale = 0.8;
     font.print(10, 50, `Path: ${state.currentPath}`);
     
     // Instructions
-    font.print(10, 420, "D-Pad: Navigate | X: Open/Run | O: Back | Triangle: Device | Square: Refresh");
-    
-    // Status message
-    if (state.statusMessage) {
-        font.color = SUCCESS_COLOR;
-        font.print(10, 400, state.statusMessage);
-        font.color = TEXT_COLOR;
-    }
+    font.print(10, 420, "D-Pad: Navigate | X: Open/Run | O: Back | Triangle: Change Device");
     
     // Error message
     if (state.errorMessage) {
-        font.color = ERROR_COLOR;
+        font.color = Color.new(255, 100, 100, 128);
         font.print(10, 400, state.errorMessage);
         font.color = TEXT_COLOR;
     }
@@ -208,15 +135,6 @@ function draw() {
     if (state.isLoading) {
         font.scale = 1.0;
         font.print(250, 200, "Loading...");
-        return;
-    }
-    
-    // Empty directory message
-    if (state.files.length === 0) {
-        font.scale = 1.0;
-        font.print(200, 200, "Empty Directory");
-        font.scale = 0.8;
-        font.print(180, 230, "Press Triangle to change device");
         return;
     }
     
@@ -256,12 +174,11 @@ function draw() {
         }
         
         // Draw icon
-        const icon = file.directory ? "[DIR]" : "[FILE]";
+        const icon = file.directory ? "[DIR]" : "[JS]";
         font.print(10, y, icon);
         
         // Draw filename
-        const displayName = file.name.length > 50 ? file.name.substring(0, 47) + "..." : file.name;
-        font.print(70, y, displayName);
+        font.print(70, y, file.name);
         
         // Draw file size (if not directory)
         if (!file.directory) {
@@ -281,26 +198,15 @@ function draw() {
         Draw.rect(634, thumbY, 5, thumbHeight, Color.new(120, 120, 150, 128));
     }
     
-    // File count and selection info
+    // File count
     font.color = TEXT_COLOR;
     font.scale = 0.7;
-    font.print(480, 50, `${state.selectedIndex + 1}/${state.files.length} items`);
+    font.print(550, 50, `${state.files.length} items`);
 }
 
 // Handle input
 function handleInput() {
     pad.update();
-    
-    if (state.files.length === 0 && !state.isLoading) {
-        // Allow device switching even with empty directory
-        if (pad.justPressed(Pads.TRIANGLE)) {
-            switchDevice();
-        }
-        if (pad.justPressed(Pads.SQUARE)) {
-            loadDirectory(state.currentPath);
-        }
-        return;
-    }
     
     if (state.files.length === 0) return;
     
@@ -334,42 +240,22 @@ function handleInput() {
     
     // Go back (Circle button)
     if (pad.justPressed(Pads.CIRCLE)) {
-        if (state.currentPath !== "mass:/" && state.currentPath !== "cdfs:/" && 
-            state.currentPath !== "mc0:/" && state.currentPath !== "mc1:/") {
+        if (state.currentPath !== "mass:/" && state.currentPath !== "cdfs:/") {
             state.currentPath = getParentPath(state.currentPath);
             loadDirectory(state.currentPath);
         }
     }
     
-    // Refresh directory (Square)
-    if (pad.justPressed(Pads.SQUARE)) {
-        loadDirectory(state.currentPath);
-    }
-    
     // Switch device (Triangle)
     if (pad.justPressed(Pads.TRIANGLE)) {
-        switchDevice();
+        if (state.currentPath.includes("mass:")) {
+            state.currentPath = "cdfs:/";
+        } else {
+            state.currentPath = "mass:/";
+        }
+        loadDirectory(state.currentPath);
     }
 }
-
-// Switch between devices
-function switchDevice() {
-    const devices = ["cdfs:/", "mass:/", "mc0:/", "mc1:/"];
-    let currentIndex = devices.indexOf(state.currentPath.split('/')[0] + ':/');
-    
-    if (currentIndex === -1) currentIndex = 0;
-    
-    currentIndex = (currentIndex + 1) % devices.length;
-    state.currentPath = devices[currentIndex];
-    
-    state.statusMessage = `Switched to ${state.currentPath}`;
-    loadDirectory(state.currentPath);
-}
-
-// Debug: Print initial info
-std.printf("=== Dashboard Started ===\n");
-std.printf("Initial path: %s\n", state.currentPath);
-std.printf("Platform: %s\n", os.platform);
 
 // Initialize
 loadDirectory(state.currentPath);
