@@ -1,28 +1,35 @@
 // AthenaEnv File Manager Dashboard
 // Save this as main.js to use as your dashboard
+//
+// NOTE: When you select a .js file, it will reload the entire environment
+// with that script. To return to this file manager, your apps should call:
+// std.reload("host:/main.js");  // or wherever this file is located
 
-const font = new Font("default");
-const pad = Pads.get(0);
+var font = new Font("default");
+var pad = Pads.get(0);
 
 // File manager state
-const state = {
-    currentPath: "cdfs:/",  // Change to your desired starting path
+var state = {
+    currentPath: "host:/",  // HostFS path for PCSX2, change to "mass:/" for USB on real PS2
     files: [],
     selectedIndex: 0,
     scrollOffset: 0,
     maxVisible: 15,
     isLoading: true,
-    errorMessage: null
+    errorMessage: null,
+    availableDevices: ["host:/", "mass:/", "cdfs:/", "mc0:/", "mc1:/"],
+    currentDeviceIndex: 0,
+    mainLoopHandle: null  // Store the interval handle so we can stop it
 };
 
 // Colors
-const BG_COLOR = Color.new(20, 20, 30, 128);
-const HEADER_COLOR = Color.new(40, 40, 60, 128);
-const SELECTED_COLOR = Color.new(80, 120, 200, 128);
-const TEXT_COLOR = Color.new(255, 255, 255, 128);
-const FOLDER_COLOR = Color.new(100, 200, 255, 128);
-const FILE_COLOR = Color.new(200, 200, 200, 128);
-const JS_COLOR = Color.new(255, 220, 100, 128);
+var BG_COLOR = Color.new(20, 20, 30, 128);
+var HEADER_COLOR = Color.new(40, 40, 60, 128);
+var SELECTED_COLOR = Color.new(80, 120, 200, 128);
+var TEXT_COLOR = Color.new(255, 255, 255, 128);
+var FOLDER_COLOR = Color.new(100, 200, 255, 128);
+var FILE_COLOR = Color.new(200, 200, 200, 128);
+var JS_COLOR = Color.new(255, 220, 100, 128);
 
 // Load files from current directory
 function loadDirectory(path) {
@@ -30,7 +37,7 @@ function loadDirectory(path) {
     state.errorMessage = null;
     
     try {
-        const dirList = System.listDir(path);
+        var dirList = System.listDir(path);
         
         if (!dirList || dirList.length === 0) {
             state.files = [];
@@ -39,7 +46,7 @@ function loadDirectory(path) {
         }
         
         // Filter: only directories and .js files
-        const filtered = dirList.filter(item => {
+        var filtered = dirList.filter(item => {
             return item.directory || item.name.endsWith('.js');
         });
         
@@ -68,9 +75,10 @@ function loadDirectory(path) {
 
 // Get parent directory
 function getParentPath(path) {
-    const parts = path.split('/').filter(p => p.length > 0);
+    var parts = path.split('/').filter(p => p.length > 0);
     if (parts.length <= 1) {
-        return path.includes("mass:") ? "mass:/" : "cdfs:/";
+        // Return to root of current device
+        return parts[0] + '/';
     }
     parts.pop();
     return parts.join('/') + '/';
@@ -91,10 +99,34 @@ function openFile(file) {
         // Only JavaScript files are shown, so this should always work
         if (file.name.endsWith('.js')) {
             try {
-                // Use std.reload to run the script
-                std.reload(fullPath);
+                // Check if file exists first
+                if (!std.exists(fullPath)) {
+                    state.errorMessage = `File not found: ${fullPath}`;
+                    return;
+                }
+                
+                // Load the file content
+                var content = std.loadFile(fullPath);
+                if (!content) {
+                    state.errorMessage = `Could not read file: ${fullPath}`;
+                    return;
+                }
+                
+                // Stop the file manager loop
+                if (state.mainLoopHandle) {
+                    os.clearInterval(state.mainLoopHandle);
+                    state.mainLoopHandle = null;
+                }
+                
+                // Clear the screen before launching
+                Screen.clear();
+                Screen.flip();
+                
+                // Execute the script
+                std.evalScript(content);
+                
             } catch (e) {
-                state.errorMessage = `Error loading ${file.name}: ${e}`;
+                state.errorMessage = `Error: ${e.toString()}`;
             }
         }
     }
@@ -117,18 +149,21 @@ function draw() {
     font.scale = 1.0;
     font.print(10, 10, "AthenaEnv File Manager - JavaScript Files Only");
     
-    // Current path
+    // Current path and device
     font.scale = 0.8;
     font.print(10, 50, `Path: ${state.currentPath}`);
+    font.print(10, 70, `Device: ${state.availableDevices[state.currentDeviceIndex]} (Triangle to cycle)`);
     
     // Instructions
-    font.print(10, 420, "D-Pad: Navigate | X: Open/Run | O: Back | Triangle: Change Device");
+    font.print(10, 420, "D-Pad: Navigate | X: Run | O: Back | Triangle: Cycle Device | Start: Reload");
     
     // Error message
     if (state.errorMessage) {
         font.color = Color.new(255, 100, 100, 128);
+        font.scale = 0.7;
         font.print(10, 400, state.errorMessage);
         font.color = TEXT_COLOR;
+        font.scale = 0.8;
     }
     
     // Loading indicator
@@ -139,8 +174,8 @@ function draw() {
     }
     
     // File list
-    const startY = 80;
-    const lineHeight = 20;
+    var startY = 100;
+    var lineHeight = 20;
     
     // Calculate visible range
     if (state.selectedIndex < state.scrollOffset) {
@@ -150,14 +185,14 @@ function draw() {
         state.scrollOffset = state.selectedIndex - state.maxVisible + 1;
     }
     
-    const visibleStart = state.scrollOffset;
-    const visibleEnd = Math.min(visibleStart + state.maxVisible, state.files.length);
+    var visibleStart = state.scrollOffset;
+    var visibleEnd = Math.min(visibleStart + state.maxVisible, state.files.length);
     
     font.scale = 0.8;
     
     for (let i = visibleStart; i < visibleEnd; i++) {
-        const file = state.files[i];
-        const y = startY + (i - visibleStart) * lineHeight;
+        var file = state.files[i];
+        var y = startY + (i - visibleStart) * lineHeight;
         
         // Draw selection highlight
         if (i === state.selectedIndex) {
@@ -174,7 +209,7 @@ function draw() {
         }
         
         // Draw icon
-        const icon = file.directory ? "[DIR]" : "[JS]";
+        var icon = file.directory ? "[DIR]" : "[JS]";
         font.print(10, y, icon);
         
         // Draw filename
@@ -189,10 +224,10 @@ function draw() {
     
     // Scrollbar indicator
     if (state.files.length > state.maxVisible) {
-        const scrollbarHeight = 300;
-        const scrollbarY = 80;
-        const thumbHeight = Math.max(20, (state.maxVisible / state.files.length) * scrollbarHeight);
-        const thumbY = scrollbarY + (state.scrollOffset / state.files.length) * scrollbarHeight;
+        var scrollbarHeight = 280;
+        var scrollbarY = 100;
+        var thumbHeight = Math.max(20, (state.maxVisible / state.files.length) * scrollbarHeight);
+        var thumbY = scrollbarY + (state.scrollOffset / state.files.length) * scrollbarHeight;
         
         Draw.rect(635, scrollbarY, 3, scrollbarHeight, Color.new(60, 60, 80, 128));
         Draw.rect(634, thumbY, 5, thumbHeight, Color.new(120, 120, 150, 128));
@@ -201,7 +236,7 @@ function draw() {
     // File count
     font.color = TEXT_COLOR;
     font.scale = 0.7;
-    font.print(550, 50, `${state.files.length} items`);
+    font.print(550, 70, `${state.files.length} items`);
 }
 
 // Handle input
@@ -234,25 +269,28 @@ function handleInput() {
     
     // Open/Execute file
     if (pad.justPressed(Pads.CROSS)) {
-        const file = state.files[state.selectedIndex];
+        var file = state.files[state.selectedIndex];
         openFile(file);
     }
     
     // Go back (Circle button)
     if (pad.justPressed(Pads.CIRCLE)) {
-        if (state.currentPath !== "mass:/" && state.currentPath !== "cdfs:/") {
+        var rootPaths = ["host:/", "mass:/", "cdfs:/", "mc0:/", "mc1:/"];
+        if (!rootPaths.includes(state.currentPath)) {
             state.currentPath = getParentPath(state.currentPath);
             loadDirectory(state.currentPath);
         }
     }
     
-    // Switch device (Triangle)
+    // Cycle through devices (Triangle)
     if (pad.justPressed(Pads.TRIANGLE)) {
-        if (state.currentPath.includes("mass:")) {
-            state.currentPath = "cdfs:/";
-        } else {
-            state.currentPath = "mass:/";
-        }
+        state.currentDeviceIndex = (state.currentDeviceIndex + 1) % state.availableDevices.length;
+        state.currentPath = state.availableDevices[state.currentDeviceIndex];
+        loadDirectory(state.currentPath);
+    }
+    
+    // Reload current directory (Start)
+    if (pad.justPressed(Pads.START)) {
         loadDirectory(state.currentPath);
     }
 }
@@ -261,7 +299,7 @@ function handleInput() {
 loadDirectory(state.currentPath);
 
 // Main loop
-os.setInterval(() => {
+state.mainLoopHandle = os.setInterval(() => {
     handleInput();
     draw();
     Screen.flip();
