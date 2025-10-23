@@ -1,19 +1,26 @@
 // {"name": "Colored Triangle", "author": "Alinani", "version": "1.0", "file": "triangle.js"}
 
-const font = new Font("default");
+var font = new Font("default");
+var pad = Pads.get(0);
 
-const v1 = { x: 320, y: 100 };
-const v2 = { x: 200, y: 350 };
-const v3 = { x: 440, y: 350 };
+var v1 = { x: 320, y: 100 };
+var v2 = { x: 200, y: 350 };
+var v3 = { x: 440, y: 350 };
 
-const color1 = Color.new(255, 0, 0, 128);
-const color2 = Color.new(0, 255, 0, 128);
-const color3 = Color.new(0, 0, 255, 128);
+var color1 = Color.new(255, 0, 0, 128);
+var color2 = Color.new(0, 255, 0, 128);
+var color3 = Color.new(0, 0, 255, 128);
 
 os.setInterval(() => {
     Screen.clear();
+    pad.update();
+    // In your app, to return to file manager:
+    if (pad.justPressed(Pads.SELECT)) {
+        std.loadScript("host:/main.js");
+    }
+    font.print(10, 20, "Select: Return to Dashboard");
 
-    draw.triangle(
+    Draw.triangle(
         v1.x, v1.y,
         v2.x, v2.y,
         v3.x, v3.y,
