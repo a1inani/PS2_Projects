@@ -1,9 +1,9 @@
 // {"name": "Bouncing Ball", "author": "Alinani", "version": "1.0", "file": "ball.js"}
 
-const font = new Font("default");
+var font = new Font("default");
 
 // Ball properties
-const ball = {
+var ball = {
     x: 320.0,
     y: 224.0,
     vx: 3.0,
@@ -13,8 +13,8 @@ const ball = {
 };
 
 // Screen boundaries
-const SCREEN_WIDTH = 640.0;
-const SCREEN_HEIGHT = 448.0;
+var SCREEN_WIDTH = 640.0;
+var SCREEN_HEIGHT = 448.0;
 
 os.setInterval(() => {
     Screen.clear();
